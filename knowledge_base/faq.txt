@@ -1,0 +1,10 @@
+TechMart Electronics - Frequently Asked Questions
+
+Q: What is your refund policy?
+A: We offer a 30-day money-back guarantee on all products. Items must be in original packaging.
+
+Q: How do I reset my password?
+A: Click on 'Forgot Password' on the login screen. A reset link will be sent to your registered email.
+
+Q: Why is my premium subscription locked?
+A: Premium subscriptions can take up to 24 hours to activate after payment. If it has been longer, please contact support.
