@@ -5,19 +5,24 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 
-# 1. Import all your specialized agent functions
+# Import all your specialized agent functions
 from agents.faq import ask_faq, FAQQuery
 from agents.technical import resolve_tech, TechQuery
 from agents.billing import resolve_billing, BillingQuery
 from agents.product import resolve_product, ProductQuery
 from agents.complaint import resolve_complaint, ComplaintQuery
 
+# Import your database save function
+from database import save_message
+
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 router = APIRouter()
 
+# Added session_id so the database knows who is talking
 class UserQuery(BaseModel):
+    session_id: str
     query: str
 
 class ChatResponse(BaseModel):
@@ -28,9 +33,8 @@ class ChatResponse(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def master_chat(request: UserQuery):
     """
-    The Master Orchestrator: Detects intent and automatically routes the query to the correct agent.
+    The Master Orchestrator: Detects intent and automatically routes the query.
     """
-    # Phase 1: Determine the Intent
     prompt = f"""
     You are an intelligent customer support router. 
     Analyze this customer query: "{request.query}"
@@ -54,7 +58,6 @@ async def master_chat(request: UserQuery):
         print(f"Error routing: {e}")
         primary_agent = "faq"
         
-    # Phase 2: Automatically forward the query to the chosen agent's logic
     if primary_agent == "technical":
         agent_result = await resolve_tech(TechQuery(query=request.query))
     elif primary_agent == "billing":
@@ -66,10 +69,11 @@ async def master_chat(request: UserQuery):
     else:
         agent_result = await ask_faq(FAQQuery(query=request.query))
         
-    # Phase 3: Return the final answer directly to the user
-    # Note: FAQ uses "ai_answer", others use "ai_response". We handle both here!
     final_answer = agent_result.get("ai_response", agent_result.get("ai_answer", "Error retrieving response."))
     department_name = agent_result.get("department", "FAQ Support")
+    
+    # Save the conversation to the SQLite database before returning it!
+    save_message(request.session_id, request.query, final_answer, department_name)
     
     return ChatResponse(
         original_query=request.query,

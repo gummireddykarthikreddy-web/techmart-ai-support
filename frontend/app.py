@@ -1,12 +1,17 @@
 import streamlit as st
 import requests
+import uuid
 
 # Set up the page layout and title
 st.set_page_config(page_title="TechMart AI Support", page_icon="🤖")
 st.title("🤖 TechMart AI Support Agent")
 st.write("Welcome! How can I help you today?")
 
-# Initialize chat history in session state so it remembers the conversation
+# NEW: Generate a unique session ID for this specific user's visit
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+# Initialize chat history in session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -15,38 +20,39 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Wait for the user to type something in the chat box at the bottom
+# Wait for the user to type something
 user_query = st.chat_input("Type your message here...")
 
 if user_query:
-    # 1. Display the user's message in the chat interface
+    # 1. Display the user's message
     with st.chat_message("user"):
         st.markdown(user_query)
     
-    # Add user message to history
     st.session_state.messages.append({"role": "user", "content": user_query})
 
-    # 2. Send the message to your FastAPI backend
-    backend_url = "http://localhost:8000/api/v1/chat"
+    # 2. Send the message TO the backend
+    backend_url = "http://backend:8000/api/v1/chat"
     
     try:
-        # Show a spinning loader while waiting for the backend
         with st.spinner("Thinking..."):
-            response = requests.post(backend_url, json={"query": user_query})
+            # NEW: We now send the session_id along with the query so the DB can track it!
+            payload = {
+                "session_id": st.session_state.session_id,
+                "query": user_query
+            }
+            response = requests.post(backend_url, json=payload)
             
         if response.status_code == 200:
             data = response.json()
             answer = data.get("ai_response", "Error getting response.")
             department = data.get("handled_by", "Unknown")
             
-            # Format the answer with a little badge showing which Agent handled it
             formatted_answer = f"**[{department}]**\n\n{answer}"
             
             # 3. Display the AI's response
             with st.chat_message("assistant"):
                 st.markdown(formatted_answer)
                 
-            # Add AI message to history
             st.session_state.messages.append({"role": "assistant", "content": formatted_answer})
             
         else:

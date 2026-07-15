@@ -1,0 +1,11 @@
+# Security
+.env
+backend/.env
+
+# Databases
+*.db
+chat_history.db
+
+# Python caches
+__pycache__/
+*.pyc
